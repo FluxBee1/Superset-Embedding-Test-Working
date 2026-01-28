@@ -100,7 +100,7 @@ app.use(
     origin: function (origin, callback) {
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
-      
+
       if (allowedOrigins.indexOf(origin) === -1) {
         const msg = `The CORS policy for this site does not allow access from the specified Origin: ${origin}`;
         return callback(new Error(msg), false);
@@ -159,7 +159,7 @@ app.post("/api/superset/guest-token", async (req, res) => {
         rls: rls || [],
         user: {
           username: SS_USERNAME,
-          first_name:SS_FIRST_NAME,
+          first_name: SS_FIRST_NAME,
           last_name: SS_LAST_NAME,
         },
       }),
@@ -173,6 +173,39 @@ app.post("/api/superset/guest-token", async (req, res) => {
     res.status(500).json({ error: "Failed to get guest token" });
   }
 });
+
+app.get("/api/superset/dataset", async (optional, res) => {
+  try {
+    const accessToken = await getAccessToken();
+    const gtRes = await fetch(`${SUPERSET_URL}/api/v1/dataset`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!gtRes.ok) {
+      throw new Error(
+        `Dataset fetch failed: ${gtRes.status} ${await gtRes.text()}`
+      );
+    }
+
+    const data = await gtRes.json();
+    const mapped = data.result.map(({ id, table_name, description }) => ({
+      id,
+      table_name,
+      description,
+    }));
+    res.json(mapped);
+    console.log(data.ids);
+
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Failed to get dataset" });
+  }
+});
+
 
 app.get("/", (req, res) => {
   res.send("Backend is running 🚀");
